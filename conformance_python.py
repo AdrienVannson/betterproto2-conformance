@@ -41,7 +41,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
   test_message = _create_test_message(request.message_type)
 
   if not test_message:
-    return ConformanceResponse(json_payload="{}")
+    return ConformanceResponse(text_payload="not supported")
 
   if (not is_json) and (test_message is None):
     raise ProtocolError("Protobuf request doesn't have specific payload type")
@@ -60,7 +60,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
             request.test_category
             == TestCategory.JSON_IGNORE_UNKNOWN_PARSING_TEST
         )
-        test_message.from_json(request.json_payload)
+        test_message = test_message.from_json(request.json_payload)
       except Exception as e:
         response.parse_error = str(e)
         return response
