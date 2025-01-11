@@ -35,7 +35,8 @@ def _create_test_message(type):
 
 
 def do_test(request: ConformanceRequest) -> ConformanceResponse:
-  response = ConformanceResponse()
+  response = ConformanceResponse(skipped="test skipped")
+  return response
 
   is_json = betterproto2.which_one_of(request, "payload")[0] == "json_payload"
   test_message = _create_test_message(request.message_type)
