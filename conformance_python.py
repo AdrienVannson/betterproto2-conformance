@@ -55,7 +55,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
         if betterproto2.which_one_of(request, "payload")[0] == "protobuf_payload":
             try:
                 test_message.parse(request.protobuf_payload)
-            except ValueError as e:
+            except Exception as e:
                 response.parse_error = str(e)
                 return response
 
@@ -79,7 +79,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
             return response
 
         else:
-          raise ProtocolError("Request didn't have payload.")
+            raise ProtocolError("Request didn't have payload.")
 
         if request.requested_output_format == WireFormat.UNSPECIFIED:
             raise ProtocolError("Unspecified output format")
