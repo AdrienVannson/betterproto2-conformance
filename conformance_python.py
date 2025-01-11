@@ -54,19 +54,17 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
         response.parse_error = str(e)
         return response
 
-    # elif betterproto2.which_one_of(request, "payload")[0] == "json_payload":
-    #   try:
-    #     ignore_unknown_fields = (
-    #         request.test_category
-    #         == TestCategory.JSON_IGNORE_UNKNOWN_PARSING_TEST
-    #     )
-    #     json_format.Parse(
-    #         request.json_payload, test_message, ignore_unknown_fields
-    #     )
-    #   except Exception as e:
-    #     response.parse_error = str(e)
-    #     return response
-# 
+    elif betterproto2.which_one_of(request, "payload")[0] == "json_payload":
+      try:
+        ignore_unknown_fields = ( # TODO
+            request.test_category
+            == TestCategory.JSON_IGNORE_UNKNOWN_PARSING_TEST
+        )
+        test_message.from_json(request.json_payload)
+      except Exception as e:
+        response.parse_error = str(e)
+        return response
+ 
     # elif betterproto2.which_one_of(request, "payload")[0] == "text_payload":
     #   try:
     #     text_format.Parse(request.text_payload, test_message)
