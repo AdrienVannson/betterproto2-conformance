@@ -15,15 +15,9 @@ import betterproto2
 
 import struct
 import sys
-from google.protobuf import json_format
-from google.protobuf import message
-from google.protobuf import text_format
-from google.protobuf import test_messages_proto2_pb2
-from google.protobuf import test_messages_proto3_pb2
-from conformance import conformance_pb2
-from conformance.test_protos import test_messages_edition2023_pb2
-from editions.golden import test_messages_proto2_editions_pb2
-from editions.golden import test_messages_proto3_editions_pb2
+
+from lib.conformance import ConformanceResponse, ConformanceRequest
+from lib.protobuf_test_messages.proto3 import TestAllTypesProto3
 
 
 test_count = 0
@@ -35,37 +29,33 @@ class ProtocolError(Exception):
 
 
 def _create_test_message(type):
-  if type == "protobuf_test_messages.proto2.TestAllTypesProto2":
-    return test_messages_proto2_pb2.TestAllTypesProto2()
   if type == "protobuf_test_messages.proto3.TestAllTypesProto3":
-    return test_messages_proto3_pb2.TestAllTypesProto3()
-  if type == "protobuf_test_messages.editions.TestAllTypesEdition2023":
-    return test_messages_edition2023_pb2.TestAllTypesEdition2023()
-  if type == "protobuf_test_messages.editions.proto2.TestAllTypesProto2":
-    return test_messages_proto2_editions_pb2.TestAllTypesProto2()
-  if type == "protobuf_test_messages.editions.proto3.TestAllTypesProto3":
-    return test_messages_proto3_editions_pb2.TestAllTypesProto3()
+    return TestAllTypesProto3()
   return None
 
 
-def do_test(request):
-  response = conformance_pb2.ConformanceResponse()
+def do_test(request: ConformanceRequest) -> ConformanceResponse:
+  response = ConformanceResponse()
+  return response
 
-  is_json = request.WhichOneof("payload") == "json_payload"
+  is_json = betterproto2.which_one_of(request, "payload")[0] == "json_payload"
   test_message = _create_test_message(request.message_type)
+
+  if not test_message:
+    return ConformanceResponse()
 
   if (not is_json) and (test_message is None):
     raise ProtocolError("Protobuf request doesn't have specific payload type")
 
   try:
-    if request.WhichOneof("payload") == "protobuf_payload":
+    if betterproto2.which_one_of(request, "payload")[0] == "protobuf_payload":
       try:
-        test_message.ParseFromString(request.protobuf_payload)
-      except message.DecodeError as e:
+        TestAllTypesProto3().parse(request.protobuf_payload)
+      except ValueError as e:
         response.parse_error = str(e)
         return response
 
-    elif request.WhichOneof("payload") == "json_payload":
+    elif betterproto2.which_one_of(request, "payload")[0] == "json_payload":
       try:
         ignore_unknown_fields = (
             request.test_category
@@ -124,24 +114,23 @@ def do_test_io():
   if len(serialized_request) != length:
     raise IOError("I/O error")
 
-  request = conformance_pb2.ConformanceRequest()
-  request.ParseFromString(serialized_request)
+  request = ConformanceRequest().parse(serialized_request)
 
   response = do_test(request)
 
-  serialized_response = response.SerializeToString()
+  serialized_response = bytes(response)
   sys.stdout.buffer.write(struct.pack("<I", len(serialized_response)))
   sys.stdout.buffer.write(serialized_response)
   sys.stdout.buffer.flush()
 
-  if verbose:
-    sys.stderr.write(
-        "conformance_python: request=%s, response=%s\n"
-        % (
-            request.ShortDebugString().c_str(),
-            response.ShortDebugString().c_str(),
-        )
-    )
+  # if verbose:
+  #   sys.stderr.write(
+  #       "conformance_python: request=%s, response=%s\n"
+  #       % (
+  #           request.ShortDebugString().c_str(),
+  #           response.ShortDebugString().c_str(),
+  #       )
+  #   )
 
   global test_count
   test_count += 1
