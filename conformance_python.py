@@ -41,7 +41,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
   test_message = _create_test_message(request.message_type)
 
   if not test_message:
-    return ConformanceResponse(text_payload="not supported")
+    return ConformanceResponse(json_payload="424242")
 
   if (not is_json) and (test_message is None):
     raise ProtocolError("Protobuf request doesn't have specific payload type")
