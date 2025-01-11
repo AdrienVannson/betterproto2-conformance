@@ -16,7 +16,7 @@ import betterproto2
 import struct
 import sys
 
-from lib.conformance import ConformanceResponse, ConformanceRequest
+from lib.conformance import ConformanceResponse, ConformanceRequest, TestCategory, WireFormat
 from lib.protobuf_test_messages.proto3 import TestAllTypesProto3
 
 
@@ -35,14 +35,13 @@ def _create_test_message(type):
 
 
 def do_test(request: ConformanceRequest) -> ConformanceResponse:
-  response = ConformanceResponse(json_payload="can't parse")
-  return response
+  response = ConformanceResponse()
 
   is_json = betterproto2.which_one_of(request, "payload")[0] == "json_payload"
   test_message = _create_test_message(request.message_type)
 
   if not test_message:
-    return ConformanceResponse()
+    return ConformanceResponse(json_payload="{}")
 
   if (not is_json) and (test_message is None):
     raise ProtocolError("Protobuf request doesn't have specific payload type")
@@ -55,46 +54,47 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
         response.parse_error = str(e)
         return response
 
-    elif betterproto2.which_one_of(request, "payload")[0] == "json_payload":
-      try:
-        ignore_unknown_fields = (
-            request.test_category
-            == conformance_pb2.JSON_IGNORE_UNKNOWN_PARSING_TEST
-        )
-        json_format.Parse(
-            request.json_payload, test_message, ignore_unknown_fields
-        )
-      except Exception as e:
-        response.parse_error = str(e)
-        return response
+    # elif betterproto2.which_one_of(request, "payload")[0] == "json_payload":
+    #   try:
+    #     ignore_unknown_fields = (
+    #         request.test_category
+    #         == TestCategory.JSON_IGNORE_UNKNOWN_PARSING_TEST
+    #     )
+    #     json_format.Parse(
+    #         request.json_payload, test_message, ignore_unknown_fields
+    #     )
+    #   except Exception as e:
+    #     response.parse_error = str(e)
+    #     return response
+# 
+    # elif betterproto2.which_one_of(request, "payload")[0] == "text_payload":
+    #   try:
+    #     text_format.Parse(request.text_payload, test_message)
+    #   except Exception as e:
+    #     response.parse_error = str(e)
+    #     return response
+# 
+    # else:
+    #   raise ProtocolError("Request didn't have payload.")
 
-    elif request.WhichOneof("payload") == "text_payload":
-      try:
-        text_format.Parse(request.text_payload, test_message)
-      except Exception as e:
-        response.parse_error = str(e)
-        return response
-
-    else:
-      raise ProtocolError("Request didn't have payload.")
-
-    if request.requested_output_format == conformance_pb2.UNSPECIFIED:
+    if request.requested_output_format == WireFormat.UNSPECIFIED:
       raise ProtocolError("Unspecified output format")
 
-    elif request.requested_output_format == conformance_pb2.PROTOBUF:
-      response.protobuf_payload = test_message.SerializeToString()
+    elif request.requested_output_format == WireFormat.PROTOBUF:
+      response.protobuf_payload = bytes(test_message)
 
-    elif request.requested_output_format == conformance_pb2.JSON:
+    elif request.requested_output_format == WireFormat.JSON:
       try:
-        response.json_payload = json_format.MessageToJson(test_message)
+        response.json_payload = test_message.to_json()
       except Exception as e:
         response.serialize_error = str(e)
         return response
 
-    elif request.requested_output_format == conformance_pb2.TEXT_FORMAT:
-      response.text_payload = text_format.MessageToString(
-          test_message, print_unknown_fields=request.print_unknown_fields
-      )
+    elif request.requested_output_format == WireFormat.TEXT_FORMAT:
+      # response.text_payload = text_format.MessageToString(
+      #     test_message, print_unknown_fields=request.print_unknown_fields
+      # )
+      response.text_payload = "not supported"
 
   except Exception as e:
     response.runtime_error = str(e)
