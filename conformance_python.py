@@ -46,7 +46,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
     test_message = _create_test_message(request.message_type)
 
     if test_message is None:
-        return ConformanceResponse(json_payload='{"error": 424242}')
+        return ConformanceResponse(skipped="non proto3 tests not supported")
 
     if (not is_json) and (test_message is None):
         raise ProtocolError("Protobuf request doesn't have specific payload type")
@@ -54,7 +54,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
     try:
         if betterproto2.which_one_of(request, "payload")[0] == "protobuf_payload":
             try:
-                TestAllTypesProto3().parse(request.protobuf_payload)
+                test_message.parse(request.protobuf_payload)
             except ValueError as e:
                 response.parse_error = str(e)
                 return response
@@ -65,20 +65,21 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
                     request.test_category
                     == TestCategory.JSON_IGNORE_UNKNOWN_PARSING_TEST
                 )
-                test_message = test_message.from_json(request.json_payload)
+                test_message.from_json(request.json_payload)
             except Exception as e:
                 response.parse_error = str(e)
                 return response
 
-        # elif betterproto2.which_one_of(request, "payload")[0] == "text_payload":
-        #   try:
-        #     text_format.Parse(request.text_payload, test_message)
-        #   except Exception as e:
-        #     response.parse_error = str(e)
-        #     return response
-        #
-        # else:
-        #   raise ProtocolError("Request didn't have payload.")
+        elif betterproto2.which_one_of(request, "payload")[0] == "text_payload":
+          return ConformanceResponse(skipped="text input not supported")
+          try:
+            text_format.Parse(request.text_payload, test_message)
+          except Exception as e:
+            response.parse_error = str(e)
+            return response
+
+        else:
+          raise ProtocolError("Request didn't have payload.")
 
         if request.requested_output_format == WireFormat.UNSPECIFIED:
             raise ProtocolError("Unspecified output format")
@@ -94,10 +95,10 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
                 return response
 
         elif request.requested_output_format == WireFormat.TEXT_FORMAT:
+            return ConformanceResponse(skipped="text output not supported")
             # response.text_payload = text_format.MessageToString(
             #     test_message, print_unknown_fields=request.print_unknown_fields
             # )
-            response.text_payload = "not supported"
 
     except Exception as e:
         response.runtime_error = str(e)
