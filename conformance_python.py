@@ -40,7 +40,7 @@ def do_test(request: ConformanceRequest) -> ConformanceResponse:
   is_json = betterproto2.which_one_of(request, "payload")[0] == "json_payload"
   test_message = _create_test_message(request.message_type)
 
-  if not test_message:
+  if test_message is None:
     return ConformanceResponse(json_payload='{"error": 424242}')
 
   if (not is_json) and (test_message is None):
